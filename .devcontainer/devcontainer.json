@@ -1,0 +1,7 @@
+{
+  "name": "antecedentes",
+  "postCreateCommand": "pip install -r requirements.txt && python -m playwright install --with-deps chromium",
+  "postAttachCommand": "PORTAL_DEMO=1 nohup python -m app.main > /tmp/app.log 2>&1 &",
+  "forwardPorts": [8000],
+  "portsAttributes": { "8000": { "label": "antecedentes", "onAutoForward": "notify" } }
+}
