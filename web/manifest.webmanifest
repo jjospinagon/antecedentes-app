@@ -1,0 +1,16 @@
+{
+  "name": "Certificados de Antecedentes",
+  "short_name": "Antecedentes",
+  "description": "Genera en un solo PDF los certificados de Procuraduria, Contraloria, Policia Nacional y RNMC.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1117",
+  "theme_color": "#0F2A44",
+  "lang": "es-CO",
+  "icons": [
+    { "src": "/app/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/app/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

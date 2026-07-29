@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Certificados de antecedentes">
+  <rect width="512" height="512" rx="96" fill="#0F2A44"/>
+  <rect x="118" y="86" width="276" height="340" rx="22" fill="#E6EDF3"/>
+  <g fill="#8B949E">
+    <rect x="156" y="134" width="200" height="18" rx="9"/>
+    <rect x="156" y="176" width="150" height="18" rx="9"/>
+    <rect x="156" y="218" width="200" height="18" rx="9"/>
+    <rect x="156" y="260" width="120" height="18" rx="9"/>
+  </g>
+  <path d="M152 332 L226 402 L378 246" fill="none" stroke="#2EA043"
+        stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

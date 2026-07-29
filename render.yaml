@@ -1,0 +1,20 @@
+# Blueprint de despliegue en Render.
+# En Render: New > Blueprint > conecta este repositorio > Apply.
+services:
+  - type: web
+    name: antecedentes
+    runtime: docker
+    plan: starter          # 'free' tambien sirve; se duerme tras 15 min sin uso
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/salud
+    autoDeploy: true
+    envVars:
+      - key: REVISION_MANUAL
+        value: "1"
+      - key: FPS_STREAM
+        value: "1.6"
+      - key: ESPERA_MAX_HUMANO_S
+        value: "600"
+      - key: TTL_SESION_S
+        value: "1800"

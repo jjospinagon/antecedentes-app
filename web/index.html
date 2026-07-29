@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0F2A44">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/app/icono.svg">
+<link rel="apple-touch-icon" href="/app/icono.svg">
+<title>Certificados de Antecedentes</title>
+<link rel="stylesheet" href="/app/styles.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">Certificados de Antecedentes</div>
+  <div id="chipEstado" class="chip">Listo</div>
+</header>
+
+<!-- ============================ 1. FORMULARIO ============================ -->
+<main id="pantallaForm" class="pantalla activa">
+  <form id="formulario" class="tarjeta">
+    <label class="campo">
+      <span>Tipo de documento</span>
+      <select id="tipoDoc">
+        <option value="CC" selected>Cedula de ciudadania</option>
+        <option value="CE">Cedula de extranjeria</option>
+        <option value="TI">Tarjeta de identidad</option>
+        <option value="PA">Pasaporte</option>
+        <option value="NIT">NIT (persona juridica)</option>
+      </select>
+    </label>
+
+    <label class="campo">
+      <span>Numero</span>
+      <input id="numero" type="tel" inputmode="numeric" autocomplete="off"
+             placeholder="1094xxxxxx" required>
+    </label>
+
+    <label class="campo">
+      <span>Fecha de expedicion</span>
+      <input id="fecha" type="date">
+    </label>
+
+    <label class="campo">
+      <span>Nombre del titular <em>(opcional, para nombrar el PDF)</em></span>
+      <input id="nombre" type="text" autocomplete="off" placeholder="Juan Perez">
+    </label>
+
+    <fieldset class="campo">
+      <legend>Certificados a generar</legend>
+      <div id="listaPortales" class="portales"></div>
+    </fieldset>
+
+    <button id="btnIniciar" class="primario" type="submit">Iniciar consulta</button>
+    <p class="aviso">
+      La app diligencia los formularios por ti. Los captcha los resuelves tu
+      desde esta misma pantalla; nunca se evaden.
+    </p>
+  </form>
+</main>
+
+<!-- ============================ 2. NAVEGADOR ============================= -->
+<main id="pantallaVisor" class="pantalla">
+  <div class="cabeceraPaso">
+    <div>
+      <div id="portalNombre" class="portalNombre">Preparando...</div>
+      <div id="portalEntidad" class="portalEntidad"></div>
+    </div>
+    <div id="contador" class="contador">0/0</div>
+  </div>
+  <div id="instruccion" class="instruccion">Abriendo portal...</div>
+
+  <div id="marco" class="marco">
+    <img id="pantalla" alt="Pantalla del portal" draggable="false">
+    <div id="cargando" class="cargando"><div class="spinner"></div></div>
+  </div>
+
+  <div class="tecleo">
+    <input id="entrada" type="text" autocomplete="off" autocapitalize="off"
+           autocorrect="off" spellcheck="false"
+           placeholder="Toca un campo arriba y escribe aqui">
+    <button id="btnEnter" class="chico" type="button">Enter</button>
+    <button id="btnBorrar" class="chico" type="button">&#9003;</button>
+  </div>
+
+  <div class="acciones">
+    <button id="btnContinuar" class="primario grande" type="button">Continuar</button>
+    <div class="fila">
+      <button id="btnRecargar" class="secundario" type="button">Recargar</button>
+      <button id="btnSaltar" class="secundario" type="button">Saltar portal</button>
+      <button id="btnCancelar" class="peligro" type="button">Cancelar</button>
+    </div>
+  </div>
+
+  <details class="bitacora">
+    <summary>Bitacora tecnica</summary>
+    <pre id="log"></pre>
+  </details>
+</main>
+
+<!-- ============================ 3. RESULTADO ============================= -->
+<main id="pantallaFin" class="pantalla">
+  <div class="tarjeta">
+    <h2 id="tituloFin">Consulta finalizada</h2>
+    <ul id="resumen" class="resumen"></ul>
+    <a id="btnDescargar" class="primario grande" download>Descargar PDF consolidado</a>
+    <button id="btnNueva" class="secundario" type="button">Nueva consulta</button>
+  </div>
+</main>
+
+<script src="/app/app.js"></script>
+</body>
+</html>

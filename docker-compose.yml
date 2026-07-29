@@ -1,0 +1,9 @@
+services:
+  antecedentes:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      REVISION_MANUAL: "1"
+    shm_size: "1gb"     # Chromium necesita memoria compartida

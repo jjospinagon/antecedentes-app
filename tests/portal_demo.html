@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Portal de prueba</title>
+<style>
+ body{font:16px system-ui;margin:0;padding:18px;background:#fff;color:#111}
+ h1{font-size:19px;margin:0 0 14px}
+ label{display:block;margin:12px 0 4px;font-size:13px;color:#444}
+ input,select{width:100%;padding:10px;font-size:16px;box-sizing:border-box}
+ #cap{font:700 26px monospace;letter-spacing:8px;background:#eee;padding:10px;
+      text-align:center;transform:skewX(-8deg);user-select:none}
+ button{margin-top:16px;width:100%;padding:14px;font-size:16px;background:#0F2A44;
+        color:#fff;border:0;border-radius:8px}
+ #res{margin-top:18px;padding:14px;border:2px solid #2ea043;border-radius:8px;display:none}
+</style></head><body>
+<h1>Certificado de prueba</h1>
+<form id="f" onsubmit="return v(event)">
+  <label>Tipo de documento</label>
+  <select id="ddlTipoID">
+    <option value="1">Cedula de ciudadania</option>
+    <option value="4">NIT</option>
+  </select>
+  <label>Numero de documento</label>
+  <input id="txtNumID" type="text">
+  <label>Codigo de verificacion</label>
+  <div id="cap">7K4M9</div>
+  <input id="txtCodigo" type="text" autocomplete="off">
+  <button id="btnConsultar" type="submit">Consultar</button>
+  <p id="err" style="color:#da3633;font-size:13px;margin:10px 0 0"></p>
+</form>
+<div id="res"><b>NO REGISTRA ANTECEDENTES</b><br><span id="eco"></span></div>
+<script>
+function v(e){e.preventDefault();
+ var err=document.getElementById('err');
+ if(document.getElementById('txtCodigo').value.trim().toUpperCase()!=='7K4M9'){
+   err.textContent='Codigo de verificacion incorrecto.';return false;}
+ err.textContent='';
+ document.getElementById('eco').textContent='Documento '+document.getElementById('txtNumID').value;
+ document.getElementById('res').style.display='block';
+ document.getElementById('f').style.display='none';
+ return false;}
+</script></body></html>
