@@ -1,0 +1,23 @@
+name: bootstrap
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desempacar payload
+        run: |
+          if [ ! -f payload.txz ]; then echo "nada por desempacar"; exit 0; fi
+          tar xJf payload.txz
+          rm -f payload.txz
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "App certificados de antecedentes (bootstrap automatico)"
+          git push
+
