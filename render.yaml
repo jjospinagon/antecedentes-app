@@ -4,7 +4,10 @@ services:
   - type: web
     name: antecedentes
     runtime: docker
-    plan: starter          # 'free' tambien sirve; se duerme tras 15 min sin uso
+    # 'free' no cobra nada y se despierta solo al abrir el enlace (~40 s la
+    # primera vez). Si lo notas lento, se sube a 'starter' con un clic en el
+    # panel de Render: queda encendido siempre y responde al instante.
+    plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/salud
