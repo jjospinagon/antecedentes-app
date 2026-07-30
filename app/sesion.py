@@ -30,6 +30,8 @@ ARGS_CHROMIUM = [
     "--disable-gpu",
     "--ignore-certificate-errors",
     "--disable-blink-features=AutomationControlled",
+    "--window-size=1280,1000",
+    "--lang=es-CO",
 ]
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
@@ -173,7 +175,10 @@ class Sesion:
         navegador: Browser | None = None
         try:
             async with async_playwright() as pw:
-                navegador = await pw.chromium.launch(headless=True, args=ARGS_CHROMIUM)
+                navegador = await pw.chromium.launch(
+                    headless=config.HEADLESS, args=ARGS_CHROMIUM)
+                self.log("Navegador listo"
+                         + ("" if config.HEADLESS else " (con pantalla real)"))
 
                 for i, portal in enumerate(lista, start=1):
                     if self.cancelada:

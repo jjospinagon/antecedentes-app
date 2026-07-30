@@ -11,8 +11,8 @@ apps.contraloria.gov.co YA NO EXISTE (NXDOMAIN). El vigente es cfiscal:
 """
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, config, elegir, escribir,
-                   pulsar, reposar)
+from .base import (DatosConsulta, Log, Portal, config, elegir_tipo_doc,
+                   escribir, pulsar, reposar)
 
 BASE = "https://cfiscal.contraloria.gov.co/certificados/"
 URL_NATURAL = BASE + "certificadopersonanatural.aspx"
@@ -43,13 +43,11 @@ class Contraloria(Portal):
                         wait_until="domcontentloaded")
         await reposar(page, 1200)
 
-        await elegir(
+        await elegir_tipo_doc(
             page,
             ["#ddlTipoDocumento", "select[name='ddlTipoDocumento']",
              "select[id*='TipoDocumento']"],
-            valores=[],
-            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["ciudadan"]),
-            log=log, etiqueta="tipo de documento",
+            datos.tipo_doc, log,
         )
 
         await escribir(

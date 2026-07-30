@@ -23,6 +23,17 @@ TTL_SESION_S = int(os.getenv("TTL_SESION_S", "1800"))                # 30 min
 # cambios de los portales.
 REVISION_MANUAL = os.getenv("REVISION_MANUAL", "1") == "1"
 
+# --- Navegador con pantalla real ----------------------------------------
+# Con HEADLESS=0 el Chromium arranca en modo normal (con ventana) sobre un
+# display virtual Xvfb. Es como corre un navegador de escritorio.
+#
+# Por que importa: reCAPTCHA le baja la puntuacion a los navegadores sin
+# pantalla y responde encadenando retos de imagenes que no terminan nunca,
+# aunque el humano los resuelva bien. Con pantalla real el reto se comporta
+# normal. El captcha lo sigue resolviendo la persona; esto solo evita que el
+# portal lo castigue por el entorno.
+HEADLESS = os.getenv("HEADLESS", "1") == "1"
+
 # --- Servidor -----------------------------------------------------------
 PUERTO = int(os.getenv("PORT", "8000"))
 ORIGENES_CORS = os.getenv("ORIGENES_CORS", "*").split(",")

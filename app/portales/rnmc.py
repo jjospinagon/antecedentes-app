@@ -14,18 +14,10 @@ la consulta nunca se enviaba y el PDF capturado era el formulario en blanco.
 """
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, elegir, escribir, pulsar,
-                   reposar)
+from .base import (DatosConsulta, Log, Portal, elegir_tipo_doc, escribir,
+                   pulsar, reposar)
 
 P = "#ctl00_ContentPlaceHolder3_"
-
-TIPO_TXT = {
-    "CC": ["cedula de ciudadania", "c.?dula de ciudadan"],
-    "CE": ["c.?dula de extranjer", "cedula de extranjeria"],
-    "TI": ["tarjeta de identidad"],
-    "PA": ["pasaporte"],
-    "NIT": ["^nit", "nit, sin digito"],
-}
 
 CAMPO_NUM = [P + "txtExpediente", "input[id*='txtExpediente']"]
 CAMPO_FECHA = ["#txtFechaexp", "input[id*='Fechaexp']", "input[id*='fechaExp']"]
@@ -53,12 +45,10 @@ class RNMC(Portal):
         await reposar(page, 2000)
 
         # Elegir el tipo dispara un postback que despliega la fecha.
-        await elegir(
+        await elegir_tipo_doc(
             page,
             [P + "ddlTipoDoc", "select[id*='ddlTipoDoc']", "select"],
-            valores=[],
-            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["cedula de ciudadania"]),
-            log=log, etiqueta="tipo de documento",
+            datos.tipo_doc, log,
         )
         await reposar(page, 2000)
 

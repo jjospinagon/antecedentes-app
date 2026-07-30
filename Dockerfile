@@ -20,5 +20,11 @@ COPY web ./web
 COPY tests ./tests
 
 EXPOSE 8000
+
+# HEADLESS=0 + xvfb-run: Chromium arranca con ventana sobre un display
+# virtual. reCAPTCHA castiga a los navegadores sin pantalla encadenando
+# retos de imagenes infinitos; con display real se comporta normal.
+# (xvfb ya viene instalado por 'playwright install --with-deps'.)
+ENV HEADLESS=0
 # Un solo worker: las sesiones de navegador viven en memoria del proceso.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 75"]
+CMD ["sh", "-c", "xvfb-run -a --server-args='-screen 0 1280x1000x24 -ac -nolisten tcp' uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 75"]

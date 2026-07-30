@@ -16,17 +16,8 @@ volver a digitarlos.
 """
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, elegir, escribir, pulsar,
-                   reposar)
-
-# El portal usa CX para cedula de extranjeria, no CE.
-TIPO_DOC = {"CC": ["CC"], "CE": ["CX"], "CX": ["CX"], "PA": ["PA"]}
-TIPO_TXT = {
-    "CC": ["c.?dula de ciudadan"],
-    "CE": ["c.?dula de extranjer"],
-    "CX": ["c.?dula de extranjer"],
-    "PA": ["pasaporte"],
-}
+from .base import (DatosConsulta, Log, Portal, elegir_tipo_doc, escribir,
+                   pulsar, reposar)
 
 
 class DelitosSexuales(Portal):
@@ -41,14 +32,10 @@ class DelitosSexuales(Portal):
     async def preparar(self, page: Page, datos: DatosConsulta, log: Log) -> None:
         await self.abrir(page, log)
 
-        tipo = datos.tipo_doc.upper()
-        await elegir(
-            page,
-            ["#tipo", "select[name='tipo']"],
-            valores=TIPO_DOC.get(tipo, ["CC"]),
-            etiquetas=TIPO_TXT.get(tipo, ["ciudadan"]),
-            log=log, etiqueta="tipo de documento",
-        )
+        # El portal usa el value 'CX' para extranjeria; el selector lo resuelve
+        # leyendo las opciones reales, no hay que suponerlo.
+        await elegir_tipo_doc(page, ["#tipo", "select[name='tipo']"],
+                              datos.tipo_doc, log)
 
         await escribir(page, ["#nuip", "input[name='nuip']"],
                        datos.numero, log, "numero de documento")

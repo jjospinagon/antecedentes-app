@@ -111,6 +111,115 @@ async def elegir(page: Page, candidatos: Iterable[str], *,
     return False
 
 
+# ------------------------------------------------ tipo de documento ---
+# Cada portal escribe el tipo de documento a su manera ("CEDULA DE
+# CIUDADANIA", "C.C.", "Cédula de ciudadanía"...). Adivinar por substring
+# es peligroso: "cedula de extranjeria" TAMBIEN contiene "cedula", y por eso
+# se colaba la opcion equivocada.
+#
+# Solucion: se leen las opciones REALES del <select> y cada una se evalua con
+# patrones a favor y EN CONTRA. Una opcion solo gana si coincide con algo de
+# 'si' y no coincide con nada de 'no'. Nada de suponer.
+TIPOS_DOC: dict[str, dict[str, list[str]]] = {
+    "CC": {
+        "si": [r"ciudadan", r"^\s*c\.?\s*c\.?\s*$", r"^cc$"],
+        "no": [r"extranjer", r"tarjeta", r"pasaporte", r"\bnit\b", r"comparendo",
+               r"expediente", r"exterior"],
+    },
+    "CE": {
+        "si": [r"extranjer", r"^\s*c\.?\s*e\.?\s*$", r"^ce$", r"^cx$"],
+        "no": [r"ciudadan", r"tarjeta", r"pasaporte", r"\bnit\b"],
+    },
+    "TI": {
+        "si": [r"tarjeta\s+de\s+identidad", r"^\s*t\.?\s*i\.?\s*$", r"^ti$"],
+        "no": [r"\bnit\b"],
+    },
+    "PA": {
+        "si": [r"pasaporte", r"^pa$", r"^ps$"],
+        "no": [],
+    },
+    "NIT": {
+        "si": [r"\bnit\b", r"^ni$", r"juridica"],
+        "no": [r"ciudadan", r"extranjer", r"tarjeta", r"pasaporte"],
+    },
+}
+
+
+def _sin_tildes(t: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFD", t or "")
+    return "".join(c for c in t if unicodedata.category(c) != "Mn").lower().strip()
+
+
+def escoger_opcion(opciones: list[tuple[str, str]], tipo: str) -> tuple[str, str] | None:
+    """
+    opciones: [(value, texto), ...] tal como estan en el DOM.
+    Devuelve la (value, texto) que corresponde al tipo, o None.
+    """
+    reglas = TIPOS_DOC.get((tipo or "").upper())
+    if not reglas:
+        return None
+    for value, texto in opciones:
+        plano = _sin_tildes(texto)
+        if not plano or plano.startswith("seleccione"):
+            continue
+        if any(re.search(n, plano) for n in reglas["no"]):
+            continue          # descarta 'extranjeria' cuando se pidio 'ciudadania'
+        if any(re.search(s, plano) for s in reglas["si"]):
+            return value, texto.strip()
+    return None
+
+
+async def elegir_tipo_doc(page: Page, candidatos: Iterable[str], tipo: str,
+                          log: Log) -> bool:
+    """Selecciona el tipo de documento leyendo las opciones reales del portal."""
+    for sel in candidatos:
+        if not await _visible(page, sel):
+            continue
+        loc = page.locator(sel).first
+        try:
+            opciones = await loc.evaluate(
+                "s => Array.from(s.options).map(o => [o.value, o.textContent])")
+        except Exception:
+            continue
+        if not opciones:
+            continue
+
+        elegida = escoger_opcion([(o[0], o[1]) for o in opciones], tipo)
+        if not elegida:
+            disponibles = ", ".join(o[1].strip() for o in opciones if o[1].strip())
+            log(f"  AVISO: '{tipo}' no existe en este portal. Opciones: {disponibles}")
+            return False
+
+        value, texto = elegida
+        try:
+            await loc.select_option(value=value, timeout=6000)
+        except Exception:
+            try:
+                await loc.select_option(label=texto, timeout=6000)
+            except Exception:
+                log(f"  AVISO: no se pudo seleccionar '{texto}'. Hazlo en pantalla.")
+                return False
+
+        # Verificacion: se confirma contra el DOM que quedo la opcion correcta.
+        try:
+            quedo = await loc.evaluate(
+                "s => s.options[s.selectedIndex] ? s.options[s.selectedIndex].textContent : ''")
+        except Exception:
+            quedo = texto
+        if _sin_tildes(quedo) != _sin_tildes(texto):
+            log(f"  AVISO: se pidio '{texto}' pero quedo '{quedo.strip()}'."
+                f" Corrigelo en pantalla.")
+            return False
+
+        log(f'  OK tipo de documento -> "{texto}" (value={value})')
+        return True
+
+    log("  AVISO: no se ubico la lista de tipo de documento."
+        " Seleccionalo en pantalla.")
+    return False
+
+
 async def pulsar(page: Page, candidatos: Iterable[str], log: Log,
                  etiqueta: str = "boton") -> bool:
     for sel in candidatos:

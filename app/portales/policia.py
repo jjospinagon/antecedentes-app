@@ -12,15 +12,8 @@ import asyncio
 
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, config, elegir, escribir,
-                   pulsar, reposar)
-
-TIPO_TXT = {
-    "CC": ["c.?dula de ciudadan"],
-    "CE": ["c.?dula de extranjer"],
-    "TI": ["tarjeta de identidad"],
-    "PA": ["pasaporte"],
-}
+from .base import (DatosConsulta, Log, Portal, config, elegir_tipo_doc,
+                   escribir, pulsar, reposar)
 
 
 class PoliciaJudicial(Portal):
@@ -70,12 +63,10 @@ class PoliciaJudicial(Portal):
         await reposar(page, 2500)
 
         # --- pantalla 2: datos de la consulta -------------------------------
-        await elegir(
+        await elegir_tipo_doc(
             page,
             ["#cedulaTipo", "select[id='cedulaTipo']", "select[id*='Tipo']"],
-            valores=[],
-            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["ciudadan"]),
-            log=log, etiqueta="tipo de documento",
+            datos.tipo_doc, log,
         )
 
         await escribir(

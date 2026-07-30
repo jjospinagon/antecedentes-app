@@ -5,7 +5,8 @@ ningun portal del Estado. El codigo del captcha es 7K4M9.
 """
 import pathlib
 
-from .base import DatosConsulta, Log, Portal, elegir, escribir, pulsar, reposar
+from .base import (DatosConsulta, Log, Portal, elegir_tipo_doc, escribir,
+                   pulsar, reposar)
 
 HTML = pathlib.Path(__file__).resolve().parents[2] / "tests" / "portal_demo.html"
 
@@ -20,10 +21,7 @@ class Demo(Portal):
 
     async def preparar(self, page, datos: DatosConsulta, log: Log) -> None:
         await self.abrir(page, log)
-        await elegir(page, ["#ddlTipoID"],
-                     valores=["4"] if datos.es_nit else ["1"],
-                     etiquetas=["nit"] if datos.es_nit else ["ciudadan"],
-                     log=log, etiqueta="tipo de documento")
+        await elegir_tipo_doc(page, ["#ddlTipoID"], datos.tipo_doc, log)
         await escribir(page, ["#txtNumID"], datos.numero, log, "numero")
         log("Captcha de prueba: escribe 7K4M9 y pulsa CONTINUAR.")
 

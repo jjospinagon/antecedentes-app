@@ -18,20 +18,8 @@ que embebe inicio.aspx en un iframe.
 """
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, elegir, escribir, pulsar,
-                   reposar)
-
-# Valores reales del <select> (leidos del DOM, no supuestos).
-TIPO_DOC = {
-    "CC": ["1"], "NIT": ["2"], "CE": ["5"], "PEP": ["0"], "PPT": ["10"],
-}
-TIPO_TXT = {
-    "CC": ["c.?dula de ciudadan"],
-    "NIT": ["^nit$", "nit"],
-    "CE": ["c.?dula extranjer", "c.?dula de extranjer"],
-    "PEP": ["^pep$"],
-    "PPT": ["^ppt$"],
-}
+from .base import (DatosConsulta, Log, Portal, elegir_tipo_doc, escribir,
+                   pulsar, reposar)
 
 
 class Procuraduria(Portal):
@@ -45,13 +33,10 @@ class Procuraduria(Portal):
     async def preparar(self, page: Page, datos: DatosConsulta, log: Log) -> None:
         await self.abrir(page, log)
 
-        tipo = datos.tipo_doc.upper()
-        await elegir(
+        await elegir_tipo_doc(
             page,
             ["#ddlTipoID", "select[name='ddlTipoID']", "select[id*='TipoID']"],
-            valores=TIPO_DOC.get(tipo, ["1"]),
-            etiquetas=TIPO_TXT.get(tipo, ["ciudadan"]),
-            log=log, etiqueta="tipo de documento",
+            datos.tipo_doc, log,
         )
 
         await escribir(
