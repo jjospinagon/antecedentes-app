@@ -148,6 +148,16 @@ class Sesion:
                     await page.mouse.click(float(msg["x"]), float(msg["y"]))
                 elif t == "texto":
                     await page.keyboard.type(str(msg.get("v", "")), delay=25)
+                elif t == "reemplazar":
+                    # El campo enfocado se vacia por completo y se reescribe con
+                    # el texto que hay en el celular. Asi el espejo nunca se
+                    # desincroniza: borrar o corregir un captcha siempre funciona
+                    # y no arrastra la respuesta anterior.
+                    await page.keyboard.press("Control+A")
+                    await page.keyboard.press("Backspace")
+                    v = str(msg.get("v", ""))
+                    if v:
+                        await page.keyboard.type(v, delay=15)
                 elif t == "tecla":
                     await page.keyboard.press(str(msg.get("k", "Enter")))
                 elif t == "scroll":

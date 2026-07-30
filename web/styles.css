@@ -132,8 +132,9 @@ button,.primario{font-family:inherit}
 }
 @keyframes giro{to{transform:rotate(360deg)}}
 
-.tecleo{display:flex;gap:8px;margin-top:12px}
-.tecleo input{flex:1}
+.tecleo{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.tecleo input{flex:1 1 150px;min-width:120px}
+.tecleo .chico{flex:0 0 auto}
 .acciones{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .fila{display:flex;gap:8px}
 

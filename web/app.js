@@ -188,10 +188,13 @@ function abrirSocket() {
         ins.textContent = m.msg || '';
         const interactivo = (m.fase === 'captcha' || m.fase === 'revision');
         ins.classList.toggle('accion', m.fase === 'revision');
-        ['btnContinuar', 'entrada', 'btnEnter', 'btnBorrar', 'btnRecargar', 'btnSaltar']
-          .forEach(id => { $(id).disabled = !interactivo; });
+        ['btnContinuar', 'entrada', 'btnEnter', 'btnBorrar', 'btnLimpiar',
+         'btnRecargar', 'btnSaltar'].forEach(id => { $(id).disabled = !interactivo; });
         $('btnContinuar').textContent =
           m.fase === 'revision' ? 'Guardar y continuar' : 'Continuar';
+        // Cada vez que aparece un captcha nuevo se limpia el buffer local, para
+        // no arrastrar la respuesta del anterior.
+        if (m.fase === 'captcha') limpiarBuffer();
         if (!interactivo) $('cargando').classList.remove('oculto');
         break;
       }
@@ -266,8 +269,7 @@ img.addEventListener('pointerup', (ev) => {
   const y = ((ev.clientY - r.top) / r.height) * vh;
   enviar({ t: 'click', x: Math.round(x), y: Math.round(y) });
   marcaToque(ev.clientX, ev.clientY);          // feedback inmediato
-  $('entrada').value = '';
-  ultimoTexto = '';
+  limpiarBuffer();                             // buffer nuevo por cada campo
   $('entrada').focus();
 });
 // Rueda del mouse (escritorio): desplaza dentro del marco.
@@ -277,26 +279,33 @@ marco.addEventListener('wheel', (ev) => {
   enviar({ t: 'scroll', dy: ev.deltaY });
 }, { passive: false });
 
-/* ------------------------------------------------------ teclado local -- */
-$('entrada').addEventListener('input', (ev) => {
-  const v = ev.target.value;
-  if (v.startsWith(ultimoTexto)) {
-    const nuevo = v.slice(ultimoTexto.length);
-    if (nuevo) enviar({ t: 'texto', v: nuevo });
-  } else {
-    const borrar = ultimoTexto.length - v.length;
-    for (let i = 0; i < Math.max(borrar, 0); i++) enviar({ t: 'tecla', k: 'Backspace' });
-  }
-  ultimoTexto = v;
-});
+/* ------------------------------------------------------ teclado local --
+   El campo del celular es la fuente de verdad: en cada cambio se reescribe
+   COMPLETO el campo remoto. Asi corregir o borrar siempre funciona y nunca
+   queda pegada la respuesta anterior (el problema del captcha de letras).
+------------------------------------------------------------------------ */
+function limpiarBuffer() {
+  ultimoTexto = '';
+  $('entrada').value = '';
+}
+function sincronizar() {
+  enviar({ t: 'reemplazar', v: $('entrada').value });
+}
+$('entrada').addEventListener('input', sincronizar);
 $('entrada').addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter') { ev.preventDefault(); enviar({ t: 'tecla', k: 'Enter' }); }
 });
 $('btnEnter').onclick = () => enviar({ t: 'tecla', k: 'Enter' });
 $('btnBorrar').onclick = () => {
-  enviar({ t: 'tecla', k: 'Backspace' });
-  ultimoTexto = ultimoTexto.slice(0, -1);
-  $('entrada').value = ultimoTexto;
+  const e = $('entrada');
+  e.value = e.value.slice(0, -1);
+  sincronizar();
+  e.focus();
+};
+$('btnLimpiar').onclick = () => {
+  $('entrada').value = '';
+  enviar({ t: 'reemplazar', v: '' });
+  $('entrada').focus();
 };
 
 /* ---------------------------------------------------------- acciones --- */
