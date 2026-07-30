@@ -112,7 +112,7 @@ async def escribir(page: Page, candidatos: Iterable[str], valor: str,
             pass
         # Intento 1: fill (instantaneo y confiable para campos de formulario).
         try:
-            await loc.click(timeout=config.TIMEOUT_ACCION_MS)
+            await _click_robusto(page, loc)      # cierra calendarios que tapen
             await loc.fill("")
             await loc.fill(valor)
         except Exception as e:
@@ -125,7 +125,7 @@ async def escribir(page: Page, candidatos: Iterable[str], valor: str,
 
         # Intento 2: tecleo caracter por caracter (campos que ignoran fill).
         try:
-            await loc.click(timeout=config.TIMEOUT_ACCION_MS)
+            await _click_robusto(page, loc)
             await page.keyboard.press("Control+A")
             await page.keyboard.press("Backspace")
             await loc.type(valor, delay=45)
@@ -148,6 +148,32 @@ async def _valor_ok(loc, valor: str) -> bool:
     except Exception:
         return False
     return got.strip() == valor.strip()
+
+
+async def _click_robusto(page: Page, loc) -> None:
+    """
+    Hace clic en el campo aunque algo lo tape. El caso real: al llenar la fecha
+    se abre un CALENDARIO que cubre los campos de abajo (Empresa, NIT), y el
+    clic normal falla con TimeoutError. Se cierra el popup con Escape y se
+    reintenta; como ultimo recurso se fuerza el clic.
+    """
+    try:
+        await loc.click(timeout=config.TIMEOUT_ACCION_MS)
+        return
+    except Exception:
+        pass
+    for _ in range(2):
+        try:
+            await page.keyboard.press("Escape")
+        except Exception:
+            pass
+        await asyncio.sleep(0.35)
+        try:
+            await loc.click(timeout=6000)
+            return
+        except Exception:
+            continue
+    await loc.click(timeout=6000, force=True)
 
 
 async def elegir(page: Page, candidatos: Iterable[str], *,
