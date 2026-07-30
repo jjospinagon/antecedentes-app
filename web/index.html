@@ -55,6 +55,24 @@
       <div id="listaPortales" class="portales"></div>
     </fieldset>
 
+    <!-- Solo lo exige el certificado de delitos sexuales (Ley 1918/2018):
+         el certificado va dirigido a una entidad. Se guarda en el celular. -->
+    <div id="bloqueEntidad" class="entidad" hidden>
+      <div class="entidadTitulo">Datos de quien consulta
+        <em>(los exige el certificado de delitos sexuales)</em></div>
+      <label class="campo">
+        <span>Entidad o empresa consultante</span>
+        <input id="entidad" type="text" autocomplete="organization"
+               placeholder="Razon social">
+      </label>
+      <label class="campo">
+        <span>NIT de la entidad <em>(con digito de verificacion)</em></span>
+        <input id="nitEntidad" type="text" inputmode="numeric"
+               placeholder="900123456-7">
+      </label>
+      <p class="aviso">Se guardan en este celular; no los vuelves a digitar.</p>
+    </div>
+
     <button id="btnIniciar" class="primario" type="submit">Iniciar consulta</button>
     <p class="aviso">
       La app diligencia los formularios por ti. Los captcha los resuelves tu

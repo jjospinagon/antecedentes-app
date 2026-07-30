@@ -5,8 +5,11 @@ import os
 # Viewport tipo movil: la captura se ve completa en el celular sin zoom.
 VIEWPORT = {"width": 430, "height": 860}
 DEVICE_SCALE = 2            # captchas legibles en pantalla pequena
-JPEG_QUALITY = 62
-FPS_STREAM = float(os.getenv("FPS_STREAM", "1.6"))
+# Calidad alta: los retos de imagen de reCAPTCHA ("selecciona los autobuses")
+# son ilegibles por debajo de ~75. Y a menos de 3 fps no alcanzas a ver que
+# casillas quedaron marcadas, asi que terminas des-seleccionando.
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "80"))
+FPS_STREAM = float(os.getenv("FPS_STREAM", "3.0"))
 
 # --- Tiempos ------------------------------------------------------------
 TIMEOUT_NAV_MS = int(os.getenv("TIMEOUT_NAV_MS", "60000"))

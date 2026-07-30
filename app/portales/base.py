@@ -28,6 +28,10 @@ class DatosConsulta:
     numero: str                        # solo digitos
     fecha_expedicion: str | None = None  # 'YYYY-MM-DD'
     nombre: str | None = None          # opcional, solo para nombrar el PDF
+    # Solo los exige el certificado de delitos sexuales (Ley 1918/2018):
+    # va dirigido a una entidad, que debe identificarse.
+    entidad: str | None = None         # razon social de quien consulta
+    nit_entidad: str | None = None     # NIT con digito de verificacion
 
     @property
     def es_nit(self) -> bool:
@@ -221,13 +225,16 @@ class CazadorPDF:
 
         objetivo = self._paginas[-1] if self._paginas else page
         self.log("  Sin PDF nativo: se imprime la pantalla del resultado")
+        # Se fuerza media 'screen', no 'print': varios portales del Estado
+        # tienen CSS de impresion que esconde justo el recuadro del resultado.
+        # Asi el PDF sale igual a lo que se ve en pantalla.
         try:
-            await objetivo.emulate_media(media="print")
+            await objetivo.emulate_media(media="screen")
         except Exception:
             pass
         return await objetivo.pdf(
-            format="Letter", print_background=True,
-            margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"},
+            format="Letter", print_background=True, prefer_css_page_size=False,
+            margin={"top": "10mm", "bottom": "10mm", "left": "8mm", "right": "8mm"},
         )
 
 

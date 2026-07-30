@@ -48,6 +48,8 @@ async function cargarPortales() {
       '<span><b>' + p.nombre + '</b><small>' + p.entidad + '</small></span>';
     cont.appendChild(l);
   });
+  cont.addEventListener('change', mostrarEntidad);
+  cargarEntidadGuardada();
   aplicarFiltroNit();
 }
 
@@ -62,6 +64,27 @@ function aplicarFiltroNit() {
     if (inhabil) chk.checked = false;
   });
   $('fecha').closest('.campo').style.display = esNit ? 'none' : '';
+  mostrarEntidad();
+}
+
+// El bloque de entidad solo aparece si esta marcado delitos sexuales.
+function mostrarEntidad() {
+  const chk = document.querySelector('#listaPortales input[value="delitos_sexuales"]');
+  $('bloqueEntidad').hidden = !(chk && chk.checked && !chk.disabled);
+}
+
+function cargarEntidadGuardada() {
+  try {
+    $('entidad').value = localStorage.getItem('entidad') || '';
+    $('nitEntidad').value = localStorage.getItem('nitEntidad') || '';
+  } catch (e) { /* modo incognito */ }
+}
+
+function guardarEntidad() {
+  try {
+    localStorage.setItem('entidad', $('entidad').value.trim());
+    localStorage.setItem('nitEntidad', $('nitEntidad').value.trim());
+  } catch (e) { /* modo incognito */ }
 }
 
 /* --------------------------------------------------------- arranque ---- */
@@ -76,11 +99,20 @@ $('formulario').addEventListener('submit', async (ev) => {
   $('btnIniciar').disabled = true;
   chip('Conectando...', 'esp');
 
+  if (seleccion.indexOf('delitos_sexuales') >= 0 &&
+      (!$('entidad').value.trim() || !$('nitEntidad').value.trim())) {
+    alert('El certificado de delitos sexuales exige la entidad que consulta y su NIT.');
+    return;
+  }
+  guardarEntidad();
+
   const cuerpo = {
     tipo_doc: $('tipoDoc').value,
     numero: $('numero').value.trim(),
     fecha_expedicion: $('fecha').value || null,
     nombre: $('nombre').value.trim() || null,
+    entidad: $('entidad').value.trim() || null,
+    nit_entidad: $('nitEntidad').value.trim() || null,
     portales: seleccion
   };
 

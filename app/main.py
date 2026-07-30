@@ -31,6 +31,8 @@ class SolicitudConsulta(BaseModel):
     numero: str
     fecha_expedicion: str | None = None
     nombre: str | None = None
+    entidad: str | None = None
+    nit_entidad: str | None = None
     portales: list[str] = Field(default_factory=list)
 
 
@@ -57,6 +59,8 @@ async def crear_sesion(req: SolicitudConsulta):
         numero=numero,
         fecha_expedicion=req.fecha_expedicion or None,
         nombre=(req.nombre or "").strip() or None,
+        entidad=(req.entidad or "").strip() or None,
+        nit_entidad=(req.nit_entidad or "").strip() or None,
     )
     s = Sesion(datos, req.portales or [p.id for p in CATALOGO])
     SESIONES[s.sid] = s

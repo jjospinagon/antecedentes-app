@@ -1,33 +1,35 @@
 """
 Policia Nacional - RNMC (Registro Nacional de Medidas Correctivas).
 
-Verificado en vivo el 29-jul-2026:
+Verificado en vivo el 30-jul-2026, con el formulario ya desplegado:
   URL     https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx
-  aviso   modal inicial con boton #ctl00_ContentPlaceHolder3_PopMsg_ok
-  campos  #ctl00_ContentPlaceHolder3_ddlTipoDoc
-          #ctl00_ContentPlaceHolder3_txtExpediente
-  boton   lupa al lado del campo (id volatil) -> se prueban candidatos y,
-          si ninguno aparece, se envia con Enter
-  El selector incluye NIT, asi que este portal si aplica a persona juridica.
+  aviso   modal inicial -> #ctl00_ContentPlaceHolder3_PopMsg_ok
+  tipo    #ctl00_ContentPlaceHolder3_ddlTipoDoc  (dispara postback)
+  numero  #ctl00_ContentPlaceHolder3_txtExpediente
+  fecha   #txtFechaexp   <- SOLO aparece despues de elegir el tipo de documento
+  enviar  #ctl00_ContentPlaceHolder3_btnConsultar2  (es un <a>, la lupa)
+
+Lo que fallaba antes: se buscaba un <input type=submit> que no existe, asi que
+la consulta nunca se enviaba y el PDF capturado era el formulario en blanco.
 """
 from playwright.async_api import Page
 
 from .base import (DatosConsulta, Log, Portal, elegir, escribir, pulsar,
                    reposar)
 
-PREFIJO = "#ctl00_ContentPlaceHolder3_"
+P = "#ctl00_ContentPlaceHolder3_"
 
 TIPO_TXT = {
     "CC": ["cedula de ciudadania", "c.?dula de ciudadan"],
     "CE": ["c.?dula de extranjer", "cedula de extranjeria"],
     "TI": ["tarjeta de identidad"],
     "PA": ["pasaporte"],
-    "NIT": ["nit"],
+    "NIT": ["^nit", "nit, sin digito"],
 }
 
-CAMPO_NUM = [PREFIJO + "txtExpediente",
-             "input[id*='txtExpediente']",
-             "input[id*='ContentPlaceHolder3'][type=text]"]
+CAMPO_NUM = [P + "txtExpediente", "input[id*='txtExpediente']"]
+CAMPO_FECHA = ["#txtFechaexp", "input[id*='Fechaexp']", "input[id*='fechaExp']"]
+BOTON = [P + "btnConsultar2", "a[id*='btnConsultar']", "a[id*='Consultar']"]
 
 
 class RNMC(Portal):
@@ -44,39 +46,45 @@ class RNMC(Portal):
         # Aviso modal de entrada.
         await pulsar(
             page,
-            [PREFIJO + "PopMsg_ok", "input[id*='PopMsg_ok']",
-             "input[type=submit][value='Ok']"],
+            [P + "PopMsg_ok", "input[id*='PopMsg_ok']",
+             P + "btn_salir_modal", "input[type=submit][value='Ok']"],
             log, "aviso inicial (Ok)",
         )
         await reposar(page, 2000)
 
+        # Elegir el tipo dispara un postback que despliega la fecha.
         await elegir(
             page,
-            [PREFIJO + "ddlTipoDoc", "select[id*='ddlTipoDoc']", "select"],
+            [P + "ddlTipoDoc", "select[id*='ddlTipoDoc']", "select"],
             valores=[],
-            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["ciudadania"]),
+            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["cedula de ciudadania"]),
             log=log, etiqueta="tipo de documento",
         )
+        await reposar(page, 2000)
 
         await escribir(page, CAMPO_NUM, datos.numero, log, "numero de documento")
 
-        log("Si el portal pide validacion, resuelvela en pantalla. Luego CONTINUAR.")
+        if datos.fecha_ddmmyyyy:
+            await escribir(page, CAMPO_FECHA, datos.fecha_ddmmyyyy, log,
+                           "fecha de expedicion")
+        else:
+            log("  AVISO: el RNMC exige fecha de expedicion (DD/MM/AAAA)."
+                " Escribela en pantalla.")
+
+        log("Revisa que los tres campos esten completos y pulsa CONTINUAR.")
 
     async def enviar(self, page: Page, log: Log) -> None:
-        ok = await pulsar(
-            page,
-            [PREFIJO + "btnBuscar", "input[id*='btnBuscar']",
-             "input[id*='ContentPlaceHolder3'][type=image]",
-             "a[id*='Buscar']", "input[type=submit][value*='uscar']"],
-            log, "boton Buscar",
-        )
+        ok = await pulsar(page, BOTON, log, "boton Consultar (lupa)")
         if not ok:
-            # La lupa cambia de id entre versiones: Enter en el campo tambien envia.
-            for sel in CAMPO_NUM:
+            for sel in CAMPO_FECHA + CAMPO_NUM:
                 try:
                     await page.locator(sel).first.press("Enter", timeout=4000)
                     log("  consulta enviada con Enter")
+                    ok = True
                     break
                 except Exception:
                     continue
-        await reposar(page, 3000)
+        if not ok:
+            log("  AVISO: no se pudo enviar. Toca la lupa en pantalla y luego"
+                " CONTINUAR.")
+        await reposar(page, 3500)

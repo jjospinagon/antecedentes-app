@@ -52,6 +52,14 @@ input:focus,select:focus{outline:2px solid var(--azul);outline-offset:-1px}
 .portal small{color:var(--tenue);font-size:11.5px}
 .portal.inhabil{opacity:.4}
 
+.entidad{
+  display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:10px;
+  background:rgba(47,129,247,.08);border:1px solid rgba(47,129,247,.35);
+}
+.entidad[hidden]{display:none}
+.entidadTitulo{font-size:12.5px;font-weight:700;color:#9dc3fb}
+.entidadTitulo em{font-style:normal;font-weight:400;opacity:.8}
+
 button,.primario{font-family:inherit}
 .primario{
   display:block;text-align:center;text-decoration:none;
