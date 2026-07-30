@@ -45,7 +45,8 @@ async def salud():
 @app.get("/api/portales")
 async def portales():
     return [{"id": p.id, "nombre": p.nombre, "entidad": p.entidad,
-             "admite_nit": p.admite_nit, "nota": p.nota} for p in CATALOGO]
+             "admite_nit": p.admite_nit, "nota": p.nota, "url": p.url}
+            for p in CATALOGO]
 
 
 @app.post("/api/sesion")

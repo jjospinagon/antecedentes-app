@@ -23,6 +23,7 @@ from playwright.async_api import Browser, Page, async_playwright
 
 from . import config, pdf as pdfmod
 from .portales import CATALOGO, POR_ID, CazadorPDF, DatosConsulta, Resultado
+from .portales.base import FIX_CAPTCHA_JS
 
 ARGS_CHROMIUM = [
     "--no-sandbox",
@@ -254,6 +255,11 @@ class Sesion:
         )
         page = await ctx.new_page()
         page.set_default_timeout(config.TIMEOUT_ACCION_MS)
+        # Fija el reto de reCAPTCHA dentro de la vista en cada pagina que cargue.
+        try:
+            await page.add_init_script(FIX_CAPTCHA_JS)
+        except Exception:
+            pass
         self.page = page
         cazador = CazadorPDF(ctx, log)
         cazador.enganchar(page)

@@ -20,6 +20,34 @@ from .. import config
 Log = Callable[[str], None]
 
 
+# --------------------------------------------------- captcha visible ------
+# El reto de imagenes de reCAPTCHA a veces se abre desplazado y su boton
+# "Verificar" queda fuera de la pantalla espejo. Este script fija el popup del
+# reto arriba-izquierda, dentro de la vista, para que SIEMPRE se pueda llegar
+# a las casillas y a Verificar. No toca el captcha en si; solo lo reubica.
+FIX_CAPTCHA_JS = r"""
+(() => {
+  const CSS = `
+    div:has(> div > iframe[title*="recaptcha challenge"]),
+    div:has(> iframe[title*="recaptcha challenge"]) {
+      position: fixed !important;
+      top: 6px !important; left: 6px !important;
+      right: auto !important; bottom: auto !important;
+      margin: 0 !important; max-height: none !important;
+      transform: none !important; z-index: 2147483647 !important;
+    }`;
+  const poner = () => {
+    if (!document.head) return;
+    let s = document.getElementById('__fixcap');
+    if (!s) { s = document.createElement('style'); s.id = '__fixcap';
+      s.textContent = CSS; document.head.appendChild(s); }
+  };
+  if (document.readyState !== 'loading') poner();
+  document.addEventListener('DOMContentLoaded', poner);
+})();
+"""
+
+
 # ---------------------------------------------------------------- datos ---
 @dataclass
 class DatosConsulta:
@@ -69,20 +97,57 @@ async def _visible(page: Page, selector: str) -> bool:
 
 async def escribir(page: Page, candidatos: Iterable[str], valor: str,
                    log: Log, etiqueta: str = "campo") -> bool:
-    """Escribe `valor` en el primer selector visible de `candidatos`."""
+    """
+    Escribe `valor` en el primer selector visible de `candidatos` y VERIFICA
+    que el dato haya quedado. Si el campo se quedo vacio (pasaba con Empresa y
+    NIT de delitos sexuales), reintenta con otra tecnica antes de rendirse.
+    """
     for sel in candidatos:
-        if await _visible(page, sel):
-            try:
-                loc = page.locator(sel).first
-                await loc.click(timeout=config.TIMEOUT_ACCION_MS)
-                await loc.fill("")
-                await loc.type(valor, delay=35)
-                log(f"  OK {etiqueta} -> {sel}")
-                return True
-            except Exception as e:  # pragma: no cover
-                log(f"  fallo {etiqueta} en {sel}: {type(e).__name__}")
+        if not await _visible(page, sel):
+            continue
+        loc = page.locator(sel).first
+        try:
+            await loc.scroll_into_view_if_needed(timeout=2500)
+        except Exception:
+            pass
+        # Intento 1: fill (instantaneo y confiable para campos de formulario).
+        try:
+            await loc.click(timeout=config.TIMEOUT_ACCION_MS)
+            await loc.fill("")
+            await loc.fill(valor)
+        except Exception as e:
+            log(f"  fallo {etiqueta} en {sel}: {type(e).__name__}")
+            continue
+
+        if await _valor_ok(loc, valor):
+            log(f"  OK {etiqueta} -> {sel}")
+            return True
+
+        # Intento 2: tecleo caracter por caracter (campos que ignoran fill).
+        try:
+            await loc.click(timeout=config.TIMEOUT_ACCION_MS)
+            await page.keyboard.press("Control+A")
+            await page.keyboard.press("Backspace")
+            await loc.type(valor, delay=45)
+        except Exception:
+            pass
+
+        if await _valor_ok(loc, valor):
+            log(f"  OK {etiqueta} -> {sel} (reintento)")
+            return True
+        log(f"  AVISO: '{etiqueta}' no quedo escrito en {sel}. Escribelo en pantalla.")
+        return False
+
     log(f"  AVISO: no se ubico '{etiqueta}'. Diligencialo manualmente en pantalla.")
     return False
+
+
+async def _valor_ok(loc, valor: str) -> bool:
+    try:
+        got = await loc.input_value(timeout=2000)
+    except Exception:
+        return False
+    return got.strip() == valor.strip()
 
 
 async def elegir(page: Page, candidatos: Iterable[str], *,

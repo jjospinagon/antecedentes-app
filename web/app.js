@@ -9,6 +9,9 @@ const $ = (id) => document.getElementById(id);
 
 let ws = null, sid = null, vw = 430, vh = 860, ultimoTexto = '';
 let redamSeleccionado = false;
+let portalActual = null;                 // id del portal en pantalla
+const PORTAL_URL = {};                   // id -> URL, para "abrir en mi navegador"
+const abiertosEnNavegador = [];          // nombres que el usuario hara aparte
 
 // Certificado que la app NO puede bajar sola porque exige cuenta personal.
 // No es un portal automatizado: se descarga aparte y se adjunta al final.
@@ -48,7 +51,7 @@ async function cargarPortales() {
     return;
   }
   cont.innerHTML = '';
-  datos.forEach(p => cont.appendChild(fila(p, false)));
+  datos.forEach(p => { PORTAL_URL[p.id] = p.url; cont.appendChild(fila(p, false)); });
   MANUALES.forEach(p => cont.appendChild(fila(p, true)));
   cont.addEventListener('change', mostrarEntidad);
   cargarEntidadGuardada();
@@ -181,6 +184,8 @@ function abrirSocket() {
         break;
 
       case 'estado': {
+        portalActual = m.portal || null;
+        window._portalNombreActual = m.nombre || '';
         $('portalNombre').textContent = m.nombre || '';
         $('portalEntidad').textContent = m.entidad || '';
         $('contador').textContent = (m.idx || 0) + '/' + (m.total || 0);
@@ -189,7 +194,8 @@ function abrirSocket() {
         const interactivo = (m.fase === 'captcha' || m.fase === 'revision');
         ins.classList.toggle('accion', m.fase === 'revision');
         ['btnContinuar', 'entrada', 'btnEnter', 'btnBorrar', 'btnLimpiar',
-         'btnRecargar', 'btnSaltar'].forEach(id => { $(id).disabled = !interactivo; });
+         'btnRecargar', 'btnSaltar', 'btnNavegador']
+          .forEach(id => { $(id).disabled = !interactivo; });
         $('btnContinuar').textContent =
           m.fase === 'revision' ? 'Guardar y continuar' : 'Continuar';
         // Cada vez que aparece un captcha nuevo se limpia el buffer local, para
@@ -318,6 +324,15 @@ $('btnContinuar').onclick = () => {
 };
 $('btnSaltar').onclick = () => enviar({ t: 'saltar' });
 $('btnRecargar').onclick = () => enviar({ t: 'recargar' });
+$('btnNavegador').onclick = () => {
+  const url = PORTAL_URL[portalActual];
+  if (!url) { alert('Este certificado no tiene portal para abrir.'); return; }
+  window.open(url, '_blank', 'noopener');
+  const nombre = window._portalNombreActual || 'Certificado';
+  if (abiertosEnNavegador.indexOf(nombre) < 0) abiertosEnNavegador.push(nombre);
+  // Se salta en la app: lo resuelves en tu navegador y lo adjuntas al final.
+  enviar({ t: 'saltar' });
+};
 $('btnCancelar').onclick = () => {
   if (confirm('Cancelar la consulta en curso?')) enviar({ t: 'cancelar' });
 };
