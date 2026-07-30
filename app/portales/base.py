@@ -170,19 +170,43 @@ def escoger_opcion(opciones: list[tuple[str, str]], tipo: str) -> tuple[str, str
     return None
 
 
-async def elegir_tipo_doc(page: Page, candidatos: Iterable[str], tipo: str,
-                          log: Log) -> bool:
-    """Selecciona el tipo de documento leyendo las opciones reales del portal."""
-    for sel in candidatos:
-        if not await _visible(page, sel):
-            continue
-        loc = page.locator(sel).first
+async def _leer_opciones(loc, intentos: int = 14, espera: float = 0.8) -> list:
+    """
+    Espera a que el <select> tenga opciones reales.
+
+    Varios portales (Contraloria entre ellos) llenan la lista por JavaScript
+    despues de cargar la pagina. Si se lee de una queda vacia y se pierde la
+    seleccion — que fue exactamente lo que pasaba.
+    """
+    opciones: list = []
+    for _ in range(intentos):
         try:
             opciones = await loc.evaluate(
                 "s => Array.from(s.options).map(o => [o.value, o.textContent])")
         except Exception:
+            opciones = []
+        # Con una sola opcion normalmente es el "Seleccione..." de relleno.
+        if len(opciones) > 1:
+            return opciones
+        await asyncio.sleep(espera)
+    return opciones
+
+
+async def elegir_tipo_doc(page: Page, candidatos: Iterable[str], tipo: str,
+                          log: Log) -> bool:
+    """Selecciona el tipo de documento leyendo las opciones reales del portal."""
+    for sel in candidatos:
+        try:
+            if await page.locator(sel).count() == 0:
+                continue
+        except Exception:
             continue
-        if not opciones:
+        loc = page.locator(sel).first
+
+        opciones = await _leer_opciones(loc)
+        if len(opciones) <= 1:
+            log(f"  AVISO: la lista de tipo de documento ({sel}) no cargo"
+                f" opciones. Seleccionalo en pantalla.")
             continue
 
         elegida = escoger_opcion([(o[0], o[1]) for o in opciones], tipo)
