@@ -11,8 +11,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /srv
 
 COPY requirements.txt .
+# xvfb + xauth: display virtual para que Chromium corra CON ventana.
+# 'playwright install --with-deps' NO los trae en la imagen slim.
 RUN pip install --no-cache-dir -r requirements.txt \
  && playwright install --with-deps chromium \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends xvfb xauth \
  && rm -rf /var/lib/apt/lists/*
 
 COPY app ./app
@@ -26,5 +30,8 @@ EXPOSE 8000
 # retos de imagenes infinitos; con display real se comporta normal.
 # (xvfb ya viene instalado por 'playwright install --with-deps'.)
 ENV HEADLESS=0
-# Un solo worker: las sesiones de navegador viven en memoria del proceso.
-CMD ["sh", "-c", "xvfb-run -a --server-args='-screen 0 1280x1000x24 -ac -nolisten tcp' uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 75"]
+ENV DISPLAY=:99
+# Se arranca Xvfb directo en vez de 'xvfb-run': este ultimo depende de xauth y
+# falla con "status 3" si falta. Un solo worker: las sesiones de navegador
+# viven en memoria del proceso.
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x1000x24 -ac -nolisten tcp >/tmp/xvfb.log 2>&1 & sleep 2; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 75"]
