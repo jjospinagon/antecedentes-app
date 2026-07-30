@@ -92,8 +92,21 @@
   </div>
   <div id="instruccion" class="instruccion">Abriendo portal...</div>
 
+  <!-- Controles de la pantalla espejo -->
+  <div class="controlesVista">
+    <span class="ayudaVista">Toca sobre la pantalla para marcar. Usa el zoom si el captcha es pequeno.</span>
+    <div class="zoomBtns">
+      <button id="btnZoomMenos" class="chico" type="button" aria-label="Alejar">&minus;</button>
+      <span id="zoomNivel" class="zoomNivel">1x</span>
+      <button id="btnZoomMas" class="chico" type="button" aria-label="Acercar">+</button>
+    </div>
+  </div>
+
   <div id="marco" class="marco">
-    <img id="pantalla" alt="Pantalla del portal" draggable="false">
+    <div id="lienzo" class="lienzo">
+      <img id="pantalla" alt="Pantalla del portal" draggable="false">
+      <div id="capaToques" class="capaToques"></div>
+    </div>
     <div id="cargando" class="cargando"><div class="spinner"></div></div>
   </div>
 
@@ -126,6 +139,31 @@
     <h2 id="tituloFin">Consulta finalizada</h2>
     <ul id="resumen" class="resumen"></ul>
     <a id="btnDescargar" class="primario grande" download>Descargar PDF consolidado</a>
+
+    <!-- Adjuntar certificados que la app no puede bajar sola:
+         REDAM (necesita tu clave de Carpeta Ciudadana) o cualquier portal
+         cuyo captcha no cooperara. Se integran al mismo PDF. -->
+    <div class="adjuntar">
+      <div class="adjuntarTitulo">Agregar otro certificado al PDF</div>
+      <p class="aviso" id="notaRedam" hidden>
+        <b>REDAM:</b> se descarga con tu usuario y clave en Carpeta Ciudadana.
+        Bajalo tu mismo (tu clave nunca pasa por esta app) y adjuntalo aqui.
+        <a id="linkRedam" href="https://carpetaciudadana.and.gov.co/"
+           target="_blank" rel="noopener">Abrir Carpeta Ciudadana</a>
+      </p>
+      <p class="aviso">
+        Sirve para REDAM o para cualquier certificado que hayas descargado tu
+        mismo. Debe ser un archivo PDF.
+      </p>
+      <label class="campo">
+        <span>Nombre del certificado</span>
+        <input id="etiquetaAdjunto" type="text" placeholder="Ej. REDAM">
+      </label>
+      <input id="archivoAdjunto" type="file" accept="application/pdf" hidden>
+      <button id="btnAdjuntar" class="secundario" type="button">Elegir PDF y adjuntar</button>
+      <div id="estadoAdjunto" class="aviso"></div>
+    </div>
+
     <button id="btnNueva" class="secundario" type="button">Nueva consulta</button>
   </div>
 </main>

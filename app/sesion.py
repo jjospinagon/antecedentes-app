@@ -159,17 +159,44 @@ class Sesion:
 
     # ------------------------------------------------------- orquestador --
     def portales(self) -> list:
-        elegidos = [POR_ID[i] for i in self.ids_portales if i in POR_ID] or CATALOGO
+        # Sin 'or CATALOGO': si no se pidio ninguno, la lista queda vacia
+        # (el usuario solo eligio certificados manuales tipo REDAM).
+        elegidos = [POR_ID[i] for i in self.ids_portales if i in POR_ID]
         return [p for p in elegidos if p.aplica(self.datos)]
+
+    def _resumen(self) -> list[dict]:
+        return [{"portal": r.portal_nombre, "id": r.portal_id,
+                 "ok": r.ok, "detalle": r.detalle} for r in self.resultados]
+
+    def _rehacer_pdf(self) -> None:
+        self.pdf_final = pdfmod.consolidar(self.datos, self.resultados)
+        self.nombre_pdf = pdfmod.nombre_archivo(self.datos)
+
+    def _emitir_fin(self) -> None:
+        self.estado = "listo"
+        self.emitir({"t": "fin", "archivo": self.nombre_pdf,
+                     "url": f"/api/pdf/{self.sid}", "resumen": self._resumen()})
+
+    def agregar_adjunto(self, etiqueta: str, pdf_bytes: bytes) -> dict:
+        """Suma un PDF que el usuario descargo aparte (REDAM u otro) y rehace
+        el consolidado. Devuelve el resumen actualizado."""
+        self.resultados.append(Resultado(
+            "adjunto", etiqueta or "Certificado adjuntado", True,
+            pdf=pdf_bytes, detalle="Adjuntado por el usuario"))
+        self._rehacer_pdf()
+        return {"archivo": self.nombre_pdf, "url": f"/api/pdf/{self.sid}",
+                "resumen": self._resumen()}
 
     async def ejecutar(self) -> None:
         self.estado = "corriendo"
         lista = self.portales()
         total = len(lista)
+
+        # Solo certificados manuales (o ninguno automatico): se arma el PDF con
+        # la caratula y se pasa directo a la pantalla de adjuntar.
         if total == 0:
-            self.estado = "error"
-            self.emitir({"t": "error", "msg":
-                         "Ningun portal seleccionado aplica a ese tipo de documento."})
+            self._rehacer_pdf()
+            self._emitir_fin()
             return
 
         navegador: Browser | None = None
@@ -187,19 +214,8 @@ class Sesion:
 
                 await navegador.close()
 
-            self.pdf_final = pdfmod.consolidar(self.datos, self.resultados)
-            self.nombre_pdf = pdfmod.nombre_archivo(self.datos)
-            self.estado = "listo"
-            self.emitir({
-                "t": "fin",
-                "archivo": self.nombre_pdf,
-                "url": f"/api/pdf/{self.sid}",
-                "resumen": [
-                    {"portal": r.portal_nombre, "id": r.portal_id,
-                     "ok": r.ok, "detalle": r.detalle}
-                    for r in self.resultados
-                ],
-            })
+            self._rehacer_pdf()
+            self._emitir_fin()
         except Exception as e:
             self.estado = "error"
             self.emitir({"t": "error", "msg": f"{type(e).__name__}: {e}"})

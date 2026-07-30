@@ -97,12 +97,34 @@ button,.primario{font-family:inherit}
   background:rgba(46,160,67,.13);border-color:rgba(46,160,67,.4);color:#8ddc9f;
 }
 
+.controlesVista{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:6px;
+}
+.ayudaVista{font-size:11px;color:var(--tenue);line-height:1.35;flex:1}
+.zoomBtns{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.zoomBtns .chico{padding:0 12px;height:34px;font-size:18px;line-height:1}
+.zoomNivel{font-size:12px;color:var(--texto);min-width:26px;text-align:center}
+
 .marco{
   position:relative;width:100%;background:#000;border-radius:var(--r);
-  overflow:hidden;border:1px solid var(--borde);min-height:220px;
+  overflow:auto;border:1px solid var(--borde);min-height:220px;
+  max-height:72vh;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;
 }
-#pantalla{display:block;width:100%;height:auto;user-select:none}
-.cargando{position:absolute;inset:0;display:grid;place-items:center;background:#000}
+.lienzo{position:relative;width:100%;display:block}
+#pantalla{display:block;width:100%;height:auto;user-select:none;
+  -webkit-user-drag:none;touch-action:pan-x pan-y}
+.capaToques{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.ping{
+  position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;
+  border:3px solid #2f81f7;border-radius:50%;background:rgba(47,129,247,.25);
+  animation:ping .5s ease-out forwards;pointer-events:none;
+}
+@keyframes ping{
+  from{transform:scale(.4);opacity:.9}
+  to{transform:scale(1.15);opacity:0}
+}
+.cargando{position:absolute;inset:0;display:grid;place-items:center;background:#000;z-index:3}
 .cargando.oculto{display:none}
 .spinner{
   width:26px;height:26px;border:3px solid #2c333d;border-top-color:var(--azul);
@@ -132,3 +154,18 @@ button,.primario{font-family:inherit}
 .punto.ok{background:var(--verde)} .punto.no{background:var(--rojo)}
 .resumen small{display:block;color:var(--tenue);font-size:11px}
 h2{margin:0;font-size:17px}
+
+.portal.manual{background:rgba(210,153,34,.08);border-color:rgba(210,153,34,.4)}
+.tag{
+  font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.3px;
+  background:var(--amarillo);color:#221a00;padding:1px 6px;border-radius:999px;
+  vertical-align:middle;margin-left:4px;
+}
+
+.adjuntar{
+  display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;
+  background:var(--panel2);border:1px dashed var(--borde);
+}
+.adjuntarTitulo{font-size:13px;font-weight:700;color:var(--texto)}
+.adjuntar a{color:var(--azul)}
+#estadoAdjunto:empty{display:none}

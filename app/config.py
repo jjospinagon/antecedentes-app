@@ -4,12 +4,14 @@ import os
 # --- Navegador remoto ---------------------------------------------------
 # Viewport tipo movil: la captura se ve completa en el celular sin zoom.
 VIEWPORT = {"width": 430, "height": 860}
-DEVICE_SCALE = 2            # captchas legibles en pantalla pequena
+DEVICE_SCALE = 2            # el JPEG sale al doble de resolucion: deja hacer
+                           # zoom hasta 2x en el celular sin verse borroso.
 # Calidad alta: los retos de imagen de reCAPTCHA ("selecciona los autobuses")
-# son ilegibles por debajo de ~75. Y a menos de 3 fps no alcanzas a ver que
-# casillas quedaron marcadas, asi que terminas des-seleccionando.
-JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "80"))
-FPS_STREAM = float(os.getenv("FPS_STREAM", "3.0"))
+# son ilegibles por debajo de ~75. Y a pocos fps no alcanzas a ver que casillas
+# quedaron marcadas, asi que terminas des-seleccionando. El streaming solo
+# ocurre mientras TU resuelves el captcha, asi que se puede ser generoso.
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "82"))
+FPS_STREAM = float(os.getenv("FPS_STREAM", "5.0"))
 
 # --- Tiempos ------------------------------------------------------------
 TIMEOUT_NAV_MS = int(os.getenv("TIMEOUT_NAV_MS", "60000"))

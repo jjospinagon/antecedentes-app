@@ -8,6 +8,15 @@ const API = location.origin;               // mismo origen que sirve la PWA
 const $ = (id) => document.getElementById(id);
 
 let ws = null, sid = null, vw = 430, vh = 860, ultimoTexto = '';
+let redamSeleccionado = false;
+
+// Certificado que la app NO puede bajar sola porque exige cuenta personal.
+// No es un portal automatizado: se descarga aparte y se adjunta al final.
+const MANUALES = [{
+  id: 'redam',
+  nombre: 'Deudores alimentarios (REDAM)',
+  entidad: 'Carpeta Ciudadana - Ley 2097/2021 (requiere tu usuario y clave)'
+}];
 
 /* --------------------------------------------------------- utilidades -- */
 function pantalla(id) {
@@ -39,18 +48,23 @@ async function cargarPortales() {
     return;
   }
   cont.innerHTML = '';
-  datos.forEach(p => {
-    const l = document.createElement('label');
-    l.className = 'portal';
-    l.dataset.nit = p.admite_nit ? '1' : '0';
-    l.innerHTML =
-      '<input type="checkbox" value="' + p.id + '" checked>' +
-      '<span><b>' + p.nombre + '</b><small>' + p.entidad + '</small></span>';
-    cont.appendChild(l);
-  });
+  datos.forEach(p => cont.appendChild(fila(p, false)));
+  MANUALES.forEach(p => cont.appendChild(fila(p, true)));
   cont.addEventListener('change', mostrarEntidad);
   cargarEntidadGuardada();
   aplicarFiltroNit();
+}
+
+function fila(p, manual) {
+  const l = document.createElement('label');
+  l.className = 'portal' + (manual ? ' manual' : '');
+  l.dataset.nit = (p.admite_nit || manual) ? '1' : '0';
+  l.dataset.manual = manual ? '1' : '0';
+  l.innerHTML =
+    '<input type="checkbox" value="' + p.id + '"' + (manual ? '' : ' checked') + '>' +
+    '<span><b>' + p.nombre + (manual ? ' <em class="tag">adjuntar</em>' : '') +
+    '</b><small>' + p.entidad + '</small></span>';
+  return l;
 }
 
 function aplicarFiltroNit() {
@@ -79,7 +93,6 @@ function cargarEntidadGuardada() {
     $('nitEntidad').value = localStorage.getItem('nitEntidad') || '';
   } catch (e) { /* modo incognito */ }
 }
-
 function guardarEntidad() {
   try {
     localStorage.setItem('entidad', $('entidad').value.trim());
@@ -92,19 +105,23 @@ $('tipoDoc').addEventListener('change', aplicarFiltroNit);
 
 $('formulario').addEventListener('submit', async (ev) => {
   ev.preventDefault();
-  const seleccion = [...document.querySelectorAll('#listaPortales input:checked')]
+  const marcados = [...document.querySelectorAll('#listaPortales input:checked')]
     .map(i => i.value);
-  if (!seleccion.length) { alert('Selecciona al menos un certificado.'); return; }
+  const manualIds = MANUALES.map(m => m.id);
+  const automaticos = marcados.filter(v => manualIds.indexOf(v) < 0);
+  redamSeleccionado = marcados.indexOf('redam') >= 0;
 
-  $('btnIniciar').disabled = true;
-  chip('Conectando...', 'esp');
+  if (!marcados.length) { alert('Selecciona al menos un certificado.'); return; }
 
-  if (seleccion.indexOf('delitos_sexuales') >= 0 &&
+  if (automaticos.indexOf('delitos_sexuales') >= 0 &&
       (!$('entidad').value.trim() || !$('nitEntidad').value.trim())) {
     alert('El certificado de delitos sexuales exige la entidad que consulta y su NIT.');
     return;
   }
   guardarEntidad();
+
+  $('btnIniciar').disabled = true;
+  chip('Conectando...', 'esp');
 
   const cuerpo = {
     tipo_doc: $('tipoDoc').value,
@@ -113,7 +130,7 @@ $('formulario').addEventListener('submit', async (ev) => {
     nombre: $('nombre').value.trim() || null,
     entidad: $('entidad').value.trim() || null,
     nit_entidad: $('nitEntidad').value.trim() || null,
-    portales: seleccion
+    portales: automaticos            // los manuales no van al backend
   };
 
   try {
@@ -125,8 +142,14 @@ $('formulario').addEventListener('submit', async (ev) => {
     if (!r.ok) throw new Error((await r.json()).detail || 'Error del servidor');
     sid = (await r.json()).sid;
     $('log').textContent = '';
-    pantalla('pantallaVisor');
-    abrirSocket();
+    if (automaticos.length) {
+      pantalla('pantallaVisor');
+      abrirSocket();
+    } else {
+      // Solo certificados manuales: se salta el navegador y va directo a adjuntar.
+      abrirSocket();                 // el backend emite 'fin' de una vez
+      pantalla('pantallaVisor');
+    }
   } catch (e) {
     alert('No se pudo iniciar: ' + e.message);
     chip('Error', 'err');
@@ -141,7 +164,7 @@ function abrirSocket() {
   ws = new WebSocket(proto + '://' + location.host + '/ws/' + sid);
 
   ws.onopen = () => chip('En proceso', 'esp');
-  ws.onclose = () => chip('Desconectado', 'err');
+  ws.onclose = () => { if (!$('pantallaFin').classList.contains('activa')) chip('Desconectado', 'err'); };
   ws.onerror = () => chip('Error de conexion', 'err');
 
   ws.onmessage = (ev) => {
@@ -188,20 +211,68 @@ function abrirSocket() {
   };
 }
 
-/* -------------------------------------------- toques sobre la pantalla -- */
-$('pantalla').addEventListener('click', (ev) => {
-  const img = ev.currentTarget;
+/* ============================================================ ESPEJO ====
+   Toque preciso + zoom con desplazamiento. El problema con el captcha de
+   imagenes era doble: (1) el toque tardaba en verse y volvias a tocar,
+   deseleccionando la casilla; (2) las casillas quedaban pequenas. Se
+   resuelve con: marca visual inmediata en cada toque, distincion entre
+   TOCAR y ARRASTRAR (para desplazar sin marcar), y zoom 1x-3x.
+======================================================================== */
+const marco = $('marco');
+const lienzo = $('lienzo');
+const img = $('pantalla');
+const capa = $('capaToques');
+
+let zoom = 1;
+const ZOOMS = [1, 1.5, 2, 3];
+
+function aplicarZoom() {
+  lienzo.style.width = (zoom * 100) + '%';
+  $('zoomNivel').textContent = zoom + 'x';
+}
+$('btnZoomMas').onclick = () => {
+  const i = ZOOMS.indexOf(zoom);
+  if (i < ZOOMS.length - 1) { zoom = ZOOMS[i + 1]; aplicarZoom(); }
+};
+$('btnZoomMenos').onclick = () => {
+  const i = ZOOMS.indexOf(zoom);
+  if (i > 0) { zoom = ZOOMS[i - 1]; aplicarZoom(); }
+};
+
+function marcaToque(clientX, clientY) {
+  const r = img.getBoundingClientRect();
+  const punto = document.createElement('span');
+  punto.className = 'ping';
+  punto.style.left = (clientX - r.left) + 'px';
+  punto.style.top = (clientY - r.top) + 'px';
+  capa.appendChild(punto);
+  setTimeout(() => punto.remove(), 550);
+}
+
+// Distinguir toque de arrastre: si el dedo se mueve poco y rapido -> toque.
+let pDown = null;
+img.addEventListener('pointerdown', (ev) => {
+  pDown = { x: ev.clientX, y: ev.clientY, t: Date.now() };
+});
+img.addEventListener('pointerup', (ev) => {
+  if (!pDown) return;
+  const dist = Math.hypot(ev.clientX - pDown.x, ev.clientY - pDown.y);
+  const dt = Date.now() - pDown.t;
+  pDown = null;
+  if (dist > 12 || dt > 700) return;          // fue un desplazamiento, no un toque
   const r = img.getBoundingClientRect();
   if (!r.width) return;
   const x = ((ev.clientX - r.left) / r.width) * vw;
   const y = ((ev.clientY - r.top) / r.height) * vh;
   enviar({ t: 'click', x: Math.round(x), y: Math.round(y) });
+  marcaToque(ev.clientX, ev.clientY);          // feedback inmediato
   $('entrada').value = '';
   ultimoTexto = '';
   $('entrada').focus();
 });
-
-$('marco').addEventListener('wheel', (ev) => {
+// Rueda del mouse (escritorio): desplaza dentro del marco.
+marco.addEventListener('wheel', (ev) => {
+  if (zoom > 1) return;                         // con zoom, deja el scroll nativo
   ev.preventDefault();
   enviar({ t: 'scroll', dy: ev.deltaY });
 }, { passive: false });
@@ -233,6 +304,7 @@ $('btnContinuar').onclick = () => {
   $('btnContinuar').disabled = true;
   $('cargando').classList.remove('oculto');
   $('entrada').value = ''; ultimoTexto = '';
+  zoom = 1; aplicarZoom();
   enviar({ t: 'continuar' });
 };
 $('btnSaltar').onclick = () => enviar({ t: 'saltar' });
@@ -242,21 +314,56 @@ $('btnCancelar').onclick = () => {
 };
 
 /* ---------------------------------------------------------- resultado -- */
-function mostrarFin(m) {
+function pintarResumen(resumen) {
   const ul = $('resumen');
   ul.innerHTML = '';
-  (m.resumen || []).forEach(r => {
+  (resumen || []).forEach(r => {
     const li = document.createElement('li');
     li.innerHTML =
       '<span class="punto ' + (r.ok ? 'ok' : 'no') + '"></span>' +
       '<span><b>' + r.portal + '</b><small>' + (r.detalle || '') + '</small></span>';
     ul.appendChild(li);
   });
+}
+function actualizarDescarga(m) {
   const a = $('btnDescargar');
-  a.href = API + m.url;
+  a.href = API + m.url + '?t=' + Date.now();     // evita cache tras adjuntar
   a.setAttribute('download', m.archivo || 'antecedentes.pdf');
+}
+function mostrarFin(m) {
+  pintarResumen(m.resumen);
+  actualizarDescarga(m);
+  $('notaRedam').hidden = !redamSeleccionado;
+  $('etiquetaAdjunto').value = redamSeleccionado ? 'REDAM' : '';
+  $('estadoAdjunto').textContent = '';
   pantalla('pantallaFin');
 }
+
+/* ------------------------------------------------------- adjuntar PDF -- */
+$('btnAdjuntar').onclick = () => $('archivoAdjunto').click();
+$('archivoAdjunto').addEventListener('change', async (ev) => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  if (f.type && f.type !== 'application/pdf') {
+    $('estadoAdjunto').textContent = 'El archivo debe ser un PDF.';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('archivo', f);
+  fd.append('etiqueta', $('etiquetaAdjunto').value.trim() || 'Certificado adjuntado');
+  $('estadoAdjunto').textContent = 'Adjuntando...';
+  try {
+    const r = await fetch(API + '/api/sesion/' + sid + '/adjuntar', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || 'No se pudo adjuntar');
+    pintarResumen(j.resumen);
+    actualizarDescarga(j);
+    $('estadoAdjunto').textContent = 'Agregado. Vuelve a tocar "Descargar PDF consolidado".';
+    $('archivoAdjunto').value = '';
+  } catch (e) {
+    $('estadoAdjunto').textContent = 'Error: ' + e.message;
+  }
+});
 
 $('btnNueva').onclick = () => {
   if (ws) ws.close();
@@ -270,4 +377,5 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+aplicarZoom();
 cargarPortales();

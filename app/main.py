@@ -5,7 +5,8 @@ import asyncio
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
+                     WebSocketDisconnect)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -62,11 +63,35 @@ async def crear_sesion(req: SolicitudConsulta):
         entidad=(req.entidad or "").strip() or None,
         nit_entidad=(req.nit_entidad or "").strip() or None,
     )
-    s = Sesion(datos, req.portales or [p.id for p in CATALOGO])
+    # Se respeta la lista tal cual: vacia = solo certificados manuales (REDAM).
+    s = Sesion(datos, req.portales)
     SESIONES[s.sid] = s
     return {"sid": s.sid,
             "portales": [{"id": p.id, "nombre": p.nombre, "entidad": p.entidad}
                          for p in s.portales()]}
+
+
+MAX_ADJUNTO = 15 * 1024 * 1024   # 15 MB por PDF
+
+
+@app.post("/api/sesion/{sid}/adjuntar")
+async def adjuntar(sid: str,
+                   archivo: UploadFile = File(...),
+                   etiqueta: str = Form("Certificado adjuntado")):
+    """Suma al consolidado un PDF que el usuario descargo por su cuenta
+    (REDAM, o cualquier portal que hiciera manualmente)."""
+    s = SESIONES.get(sid)
+    if not s:
+        raise HTTPException(404, "Sesion no encontrada o expirada.")
+    datos = await archivo.read()
+    if len(datos) > MAX_ADJUNTO:
+        raise HTTPException(400, "El PDF supera el limite de 15 MB.")
+    if datos[:4] != b"%PDF":
+        raise HTTPException(400, "El archivo debe ser un PDF valido.")
+    try:
+        return {"ok": True, **s.agregar_adjunto(etiqueta.strip(), datos)}
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo integrar el PDF: {type(e).__name__}")
 
 
 @app.get("/api/pdf/{sid}")
