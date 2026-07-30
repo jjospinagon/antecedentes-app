@@ -1,8 +1,26 @@
-"""Policia Nacional - Consulta de antecedentes judiciales (WebJudicial, JSF)."""
+"""
+Policia Nacional - Consulta de antecedentes judiciales (WebJudicial, JSF).
+
+Verificado en vivo el 29-jul-2026. Son DOS pantallas:
+  1) index.xhtml        radio input[id='aceptaOption:0'] (Acepto) + #continuarBtn
+  2) antecedentes.xhtml #cedulaTipo  #cedulaInput  + boton Consultar (id volatil
+                        tipo j_idt17) + reCAPTCHA Enterprise v2
+
+El portal a veces no carga a la primera; por eso se reintenta la apertura.
+"""
+import asyncio
+
 from playwright.async_api import Page
 
-from .base import (DatosConsulta, Log, Portal, escribir, marcar_checkboxes,
+from .base import (DatosConsulta, Log, Portal, config, elegir, escribir,
                    pulsar, reposar)
+
+TIPO_TXT = {
+    "CC": ["c.?dula de ciudadan"],
+    "CE": ["c.?dula de extranjer"],
+    "TI": ["tarjeta de identidad"],
+    "PA": ["pasaporte"],
+}
 
 
 class PoliciaJudicial(Portal):
@@ -11,51 +29,68 @@ class PoliciaJudicial(Portal):
     entidad = "Policia Nacional de Colombia"
     url = "https://antecedentes.policia.gov.co:7005/WebJudicial/index.xhtml"
     admite_nit = False
-    nota = "Consulta de antecedentes penales y requerimientos judiciales."
+    nota = "Antecedentes penales y requerimientos judiciales (Decreto 019/2012)."
 
     async def preparar(self, page: Page, datos: DatosConsulta, log: Log) -> None:
-        await self.abrir(page, log)
+        # --- pantalla 1: terminos de uso ------------------------------------
+        cargo = False
+        for intento in (1, 2, 3):
+            try:
+                await page.goto(self.url, timeout=config.TIMEOUT_NAV_MS,
+                                wait_until="domcontentloaded")
+                await reposar(page, 1500)
+                if await page.locator("input[id='aceptaOption:0']").first.is_visible(
+                        timeout=6000):
+                    cargo = True
+                    break
+            except Exception:
+                pass
+            log(f"  el portal no respondio (intento {intento}/3), reintentando...")
+            await asyncio.sleep(3)
 
-        # Paso 1: pantalla de terminos y condiciones.
-        await marcar_checkboxes(page, log)
-        if await pulsar(
-            page,
-            ["button:has-text('Enviar')", "input[value='Enviar']",
-             "button:has-text('Aceptar')", "a:has-text('Continuar')",
-             "span:has-text('Enviar')"],
-            log, "aceptar terminos",
-        ):
-            await reposar(page, 2000)
+        if not cargo:
+            log("  AVISO: la pantalla de terminos no cargo. Recarga con el boton"
+                " Recargar o pulsa Saltar portal.")
+            return
 
-        # Paso 2: formulario de consulta.
-        await escribir(
+        try:
+            await page.locator("input[id='aceptaOption:0']").first.check(
+                timeout=6000, force=True)
+            log("  OK acepto los terminos de uso")
+        except Exception:
+            log("  AVISO: marca 'Acepto' en pantalla.")
+
+        await reposar(page, 800)
+        await pulsar(
             page,
-            ["#continuar\\:nseccion", "input[id*='nseccion']",
-             "input[id*='cedula']", "input[id*='Cedula']",
-             "input[id*='documento']", "input[type=text]:not([id*=aptcha])"],
-            datos.numero, log, "numero de cedula",
+            ["#continuarBtn", "button[id='continuarBtn']",
+             "button:has-text('Enviar')"],
+            log, "boton Enviar",
+        )
+        await reposar(page, 2500)
+
+        # --- pantalla 2: datos de la consulta -------------------------------
+        await elegir(
+            page,
+            ["#cedulaTipo", "select[id='cedulaTipo']", "select[id*='Tipo']"],
+            valores=[],
+            etiquetas=TIPO_TXT.get(datos.tipo_doc.upper(), ["ciudadan"]),
+            log=log, etiqueta="tipo de documento",
         )
 
-        if datos.fecha_ddmmyyyy:
-            await escribir(
-                page,
-                ["input[id*='fecha']", "input[type=date]", "input[id*='Fecha']"],
-                datos.fecha_ddmmyyyy, log, "fecha de expedicion",
-            )
+        await escribir(
+            page,
+            ["#cedulaInput", "input[id='cedulaInput']", "input[type=text]"],
+            datos.numero, log, "numero de documento",
+        )
 
-        log("Resuelve el captcha en pantalla y pulsa CONTINUAR.")
+        log("Marca la casilla 'No soy un robot' en pantalla y pulsa CONTINUAR.")
 
     async def enviar(self, page: Page, log: Log) -> None:
         await pulsar(
             page,
             ["button:has-text('Consultar')", "input[value='Consultar']",
-             "span:has-text('Consultar')", "button[type=submit]",
-             "input[type=submit]"],
+             "button[type=submit]", "input[type=submit]"],
             log, "boton Consultar",
         )
-        await reposar(page, 3000)
-
-        # El resultado se imprime desde la propia pagina.
-        await pulsar(page, ["a:has-text('Imprimir')", "button:has-text('Imprimir')"],
-                     log, "boton Imprimir")
-        await reposar(page, 1500)
+        await reposar(page, 3500)
