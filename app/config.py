@@ -36,6 +36,14 @@ REVISION_MANUAL = os.getenv("REVISION_MANUAL", "1") == "1"
 # portal lo castigue por el entorno.
 HEADLESS = os.getenv("HEADLESS", "1") == "1"
 
+# --- Perfil persistente (recomendado para uso LOCAL) --------------------
+# Si PERFIL_DIR apunta a una carpeta, el navegador guarda ahi sus cookies y
+# reputacion entre consultas. Corriendo desde TU conexion, esto hace que el
+# "No soy un robot" pase de un clic y casi nunca salgan fotos, porque Google
+# reconoce el navegador. En Render se deja vacio (cada consulta arranca limpia
+# y no hay choques entre usuarios). Uso local: PERFIL_DIR=/datos/perfil.
+PERFIL_DIR = os.getenv("PERFIL_DIR", "").strip()
+
 # --- Servidor -----------------------------------------------------------
 PUERTO = int(os.getenv("PORT", "8000"))
 ORIGENES_CORS = os.getenv("ORIGENES_CORS", "*").split(",")

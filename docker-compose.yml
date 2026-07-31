@@ -6,4 +6,11 @@ services:
     environment:
       PORT: "8000"
       REVISION_MANUAL: "1"
-    shm_size: "1gb"     # Chromium necesita memoria compartida
+      # Perfil persistente: guarda cookies/reputacion entre consultas. Corriendo
+      # desde tu conexion, hace que el "No soy un robot" pase de un clic y casi
+      # nunca salgan fotos. La carpeta ./datos guarda ese perfil en tu PC.
+      PERFIL_DIR: "/datos/perfil"
+    volumes:
+      - ./datos:/datos
+    shm_size: "1gb"       # Chromium necesita memoria compartida
+    restart: unless-stopped

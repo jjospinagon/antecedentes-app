@@ -210,41 +210,7 @@ class Sesion:
             self._emitir_fin()
             return
 
-        navegador: Browser | None = None
-        try:
-            async with async_playwright() as pw:
-                navegador = await pw.chromium.launch(
-                    headless=config.HEADLESS, args=ARGS_CHROMIUM)
-                self.log("Navegador listo"
-                         + ("" if config.HEADLESS else " (con pantalla real)"))
-
-                for i, portal in enumerate(lista, start=1):
-                    if self.cancelada:
-                        break
-                    await self._un_portal(navegador, portal, i, total)
-
-                await navegador.close()
-
-            self._rehacer_pdf()
-            self._emitir_fin()
-        except Exception as e:
-            self.estado = "error"
-            self.emitir({"t": "error", "msg": f"{type(e).__name__}: {e}"})
-            self.log(traceback.format_exc()[-800:])
-            if navegador:
-                try:
-                    await navegador.close()
-                except Exception:
-                    pass
-
-    async def _un_portal(self, navegador: Browser, portal, idx: int, total: int) -> None:
-        bitacora: list[str] = []
-
-        def log(txt: str) -> None:
-            bitacora.append(txt)
-            self.log(txt)
-
-        ctx = await navegador.new_context(
+        OPC_CTX = dict(
             viewport=config.VIEWPORT,
             device_scale_factor=config.DEVICE_SCALE,
             user_agent=UA,
@@ -253,6 +219,60 @@ class Sesion:
             accept_downloads=True,
             ignore_https_errors=True,
         )
+
+        navegador: Browser | None = None
+        persistente = None
+        try:
+            async with async_playwright() as pw:
+                if config.PERFIL_DIR:
+                    # Un solo perfil persistente compartido por todos los portales:
+                    # conserva cookies y reputacion entre consultas.
+                    persistente = await pw.chromium.launch_persistent_context(
+                        config.PERFIL_DIR, headless=config.HEADLESS,
+                        args=ARGS_CHROMIUM, **OPC_CTX)
+                    self.log("Navegador con perfil persistente"
+                             + ("" if config.HEADLESS else " (con pantalla real)"))
+                    for i, portal in enumerate(lista, start=1):
+                        if self.cancelada:
+                            break
+                        await self._un_portal(persistente, False, portal, i, total)
+                    await persistente.close()
+                    persistente = None
+                else:
+                    navegador = await pw.chromium.launch(
+                        headless=config.HEADLESS, args=ARGS_CHROMIUM)
+                    self.log("Navegador listo"
+                             + ("" if config.HEADLESS else " (con pantalla real)"))
+                    for i, portal in enumerate(lista, start=1):
+                        if self.cancelada:
+                            break
+                        ctx = await navegador.new_context(**OPC_CTX)
+                        await self._un_portal(ctx, True, portal, i, total)
+                    await navegador.close()
+
+            self._rehacer_pdf()
+            self._emitir_fin()
+        except Exception as e:
+            self.estado = "error"
+            self.emitir({"t": "error", "msg": f"{type(e).__name__}: {e}"})
+            self.log(traceback.format_exc()[-800:])
+            for cerr in (persistente, navegador):
+                if cerr:
+                    try:
+                        await cerr.close()
+                    except Exception:
+                        pass
+
+    async def _un_portal(self, ctx, propia: bool, portal, idx: int, total: int) -> None:
+        """`ctx` ya viene creado. `propia` indica si este contexto es exclusivo
+        de este portal (se cierra al terminar) o es el perfil persistente
+        compartido (solo se cierra la pagina)."""
+        bitacora: list[str] = []
+
+        def log(txt: str) -> None:
+            bitacora.append(txt)
+            self.log(txt)
+
         page = await ctx.new_page()
         page.set_default_timeout(config.TIMEOUT_ACCION_MS)
         # Fija el reto de reCAPTCHA dentro de la vista en cada pagina que cargue.
@@ -318,7 +338,10 @@ class Sesion:
         finally:
             self.streaming = False
             try:
-                await ctx.close()
+                if propia:
+                    await ctx.close()          # contexto exclusivo del portal
+                else:
+                    await page.close()         # perfil persistente: solo la pagina
             except Exception:
                 pass
             self.page = None
